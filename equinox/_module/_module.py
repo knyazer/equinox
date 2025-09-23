@@ -609,11 +609,23 @@ class Module(Hashable, metaclass=_ModuleMeta):
         return tree_pformat(self)
 
     def __hash__(self) -> int:
-        return hash(
-            tuple(
-                (f.name, getattr(self, f.name)) for f in dataclasses.fields(type(self))
+        try:
+            return hash(
+                tuple(
+                    (f.name, getattr(self, f.name))
+                    for f in dataclasses.fields(type(self))
+                )
             )
-        )
+        except TypeError as e:
+            msg = "Encountered unhashable objects in Equinox module:\n"
+            for f in dataclasses.fields(type(self)):
+                inp = (f.name, getattr(self, f.name))
+                try:
+                    hash(inp)
+                except TypeError as e_lower:
+                    msg += f"{inp} raised {e_lower}\n\n"
+
+            raise TypeError(msg) from e
 
     def __eq__(self, other) -> bool | np.bool_ | Bool[Array, ""]:  # pyright: ignore
         return tree_equal(self, other)
